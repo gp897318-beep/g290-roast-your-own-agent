@@ -1,29 +1,51 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 
-// Roast Your Own Agent: the roast is the formatting doing the
-// work — the agent does the right social move (apologize) and the
-// wrong technical one (repeat the error), then dresses the failure
-// up prettier. It targets a real agent behaviour: confident,
-// well-formatted wrongness instead of a fix.
-const line =
+// Roast Your Own Agent — the joke is an agent doing the polite thing
+// and the useless thing at once: it says sorry for the mistake, then
+// makes the same mistake again, only prettier. That is the behaviour
+// being roasted — confident, well-formatted wrongness instead of a fix.
+
+const ROAST =
   "My agent apologized for the error, then repeated it with better formatting.";
 
-// The gate: UTF-8 text, one line, 1-140 characters. Check the limit
-// here so an invalid line can never ship.
+// Gate from RULES.txt: /output/entry.txt must be UTF-8 text, a single
+// line, 1-140 characters, and not only whitespace.
+const MIN_CHARS = 1;
 const MAX_CHARS = 140;
+const OUTPUT_PATH = "/output/entry.txt";
 
-function oneLine(text: string): string {
-  const line = text.replace(/\s+/g, " ").trim();
-  if (line.length < 1 || line.length > MAX_CHARS) {
-    throw new Error(`line must be 1-${MAX_CHARS} chars, got ${line.length}`);
+function collapseWhitespace(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function checkLength(line: string): void {
+  if (line.length < MIN_CHARS) {
+    throw new Error("entry must not be empty or only whitespace");
   }
-  if (line.includes("\n")) {
-    throw new Error("line must be a single line");
+  if (line.length > MAX_CHARS) {
+    throw new Error(
+      `entry must be at most ${MAX_CHARS} characters, got ${line.length}`,
+    );
   }
+}
+
+function checkNoNewline(line: string): void {
+  if (/[\r\n]/.test(line)) {
+    throw new Error("entry must be a single line");
+  }
+}
+
+// Collapse first so the length check measures the shipped line, not
+// the raw literal: extra spaces in the source must never push a
+// valid roast over the 140-character gate.
+function assertSingleLine(text: string): string {
+  const line = collapseWhitespace(text);
+  checkLength(line);
+  checkNoNewline(line);
   return line;
 }
 
-const checked = oneLine(line);
+const entry = assertSingleLine(ROAST);
 
 mkdirSync("/output", { recursive: true });
-writeFileSync("/output/entry.txt", checked, "utf8");
+writeFileSync(OUTPUT_PATH, entry, "utf8");
